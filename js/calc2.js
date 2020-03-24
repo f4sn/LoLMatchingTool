@@ -86,16 +86,28 @@ function simulate(){
 	sort_by_rate(game_match)
 
 	goodgame = lane_optimization(game_match)
-
+	var stack
+	if (goodgame.red.rate.sum < goodgame.blue.rate.sum) {
+			stack = goodgame.blue
+			goodgame.blue = goodgame.red
+			goodgame.red = stack
+	}
 	draw(goodgame)
 }
 
 function sort_by_rate(game){
 	game.sort(function(prev,next){
 		var rate_bias = 1
-		var variance_bias = 0.03
-		var p_point = Math.abs(prev.red.rate.sum - prev.rate) * rate_bias + Math.abs(prev.red.rate.variance - prev.blue.rate.variance) * variance_bias
-		var n_point = Math.abs(next.red.rate.sum - next.rate) * rate_bias + Math.abs(next.red.rate.variance - next.blue.rate.variance) * variance_bias
+		var variance_bias = 0.5 //最大分散に対する有効割合 1.00のとき、最大分散を基準にレート差割合と50%50%になる
+		var variance_base = 400000 //最大分散のおおよそ
+
+		var prev_rate_diff = Math.abs(prev.red.rate.sum - prev.rate) * rate_bias //平均からの差
+		var prev_variance_diff = Math.abs(prev.red.rate.variance - prev.blue.rate.variance) * variance_bias * prev_rate_diff / variance_base
+		var p_point = prev_rate_diff + prev_variance_diff
+
+		var next_rate_diff = Math.abs(next.red.rate.sum - next.rate) * rate_bias
+		var next_variance_diff = Math.abs(next.red.rate.variance - next.blue.rate.variance) * variance_bias * prev_rate_diff / variance_base
+		var n_point =  next_rate_diff + next_variance_diff
 
 		if(p_point < n_point) return -1
 		if(p_point > n_point) return 1
@@ -105,7 +117,7 @@ function sort_by_rate(game){
 			}
 			else
 			{
-				return -1 
+				return -1
 			}
 		}
 		return 0
@@ -124,7 +136,7 @@ function lane_optimization(list){
 
 	var main_match_point = 100
 	var sub_match_point = 60
-	
+
 	var max_index = 0
   var	max_score = -100000
 	var l = ["TOP", "JG", "MID", "ADC", "SUP"]
@@ -142,7 +154,7 @@ function lane_optimization(list){
 				var b_p = team.blue.player[k]
 				var r_lane = l[r_a[k]]
 				var b_lane = l[b_a[k]]
-				var r_f = 0 
+				var r_f = 0
 				var b_f = 0
 				if (r_p.lane[0] == r_lane || r_p.lane[0] == "FILL"){
 					r_match_score += main_match_point
@@ -152,10 +164,10 @@ function lane_optimization(list){
 					r_f = 1
 				}
 				if (b_p.lane[0] == b_lane || b_p.lane[0] == "FILL"){
-					b_match_score += main_match_point 
+					b_match_score += main_match_point
 					b_f = 2
 				}else if (b_p.lane[1] == b_lane || b_p.lane[1] == "FILL"){
-					b_match_score += sub_match_point 
+					b_match_score += sub_match_point
 					b_f = 1
 				}
 				var r_rate = 0
@@ -163,15 +175,15 @@ function lane_optimization(list){
 				if (r_f == 2){
 					r_rate = r_p.rate * main_bias
 				} else if(r_f == 1){
-					r_rate = r_p.rate * sub_bias 
+					r_rate = r_p.rate * sub_bias
 				}else{
-					r_rate = r_p.rate * other_bias 
+					r_rate = r_p.rate * other_bias
 				}
 				if (b_f == 2){
 					b_rate = b_p.rate	* main_bias
-				} else if(b_f == 1){          
-					b_rate = b_p.rate * sub_bias 
-				}else{                        
+				} else if(b_f == 1){
+					b_rate = b_p.rate * sub_bias
+				}else{
 					b_rate = b_p.rate * other_bias
 				}
 
@@ -187,7 +199,7 @@ function lane_optimization(list){
 					r_match_score *= strong_team_bias
 					b_match_score *= strong_team_bias
 				}
-				
+
 				battle_score +=  (r_match_score + b_match_score) * matching_bias - rate_score * battle_bias
 			}
 			if (max_score < battle_score){
